@@ -1,5 +1,5 @@
 # CodeBase of TRIDENT
-## This is the official repository for [Transductive Decoupled Variational Inference For Few Shot Classification](https://openreview.net/forum?id=bomdTc9HyL)<br> (Anuj Singh, Hadi Jamali-Rad)
+## This is the forked repository for [Transductive Decoupled Variational Inference For Few Shot Classification](https://openreview.net/forum?id=bomdTc9HyL)<br>
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/transductive-decoupled-variational-inference/few-shot-image-classification-on-mini-5)](https://paperswithcode.com/sota/few-shot-image-classification-on-mini-5?p=transductive-decoupled-variational-inference)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/transductive-decoupled-variational-inference/few-shot-image-classification-on-mini-6)](https://paperswithcode.com/sota/few-shot-image-classification-on-mini-6?p=transductive-decoupled-variational-inference)
