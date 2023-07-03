@@ -1,6 +1,8 @@
 import os
 import argparse
 import json
+from collections import OrderedDict
+
 import numpy as np
 from torch._C import device
 
@@ -43,7 +45,6 @@ parser.add_argument('--download', type=str)
 parser.add_argument('--times', type=int)
 parser.add_argument('--extra', type=str)
 
-
 args = parser.parse_args()
 with open(args.cnfg) as f:
     parser = argparse.ArgumentParser()
@@ -52,7 +53,6 @@ with open(args.cnfg) as f:
 
     args = argparse.Namespace()
     args.__dict__.update(argparse_dict)
-
 
 # TODO: fix this bool/str shit
 
@@ -77,40 +77,48 @@ elif args.task_adapt == 'False':
     args.task_adapt = False
 
 # Generating Tasks, initializing learners, loss, meta - optimizer and profilers
-_, _, test_tasks, learner = setup(
-    args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device, download=args.download, task_adapt=args.task_adapt, args=args)
+train_tasks, valid_tasks, test_tasks, learner = setup(
+    args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device,
+    download=args.download, task_adapt=args.task_adapt, args=args)
 reconst_loss = nn.MSELoss(reduction='none')
 if args.order == False:
     profiler = Profiler('TRIDENT_test_{}_{}-way_{}-shot_{}-queries'.format(args.dataset,
-                        args.n_ways, args.k_shots, args.q_shots), args.experiment, args)
+                                                                           args.n_ways, args.k_shots, args.q_shots),
+                        args.experiment, args)
 
 elif args.order == True:
     profiler = Profiler('FO-TRIDENT_{}_{}-way_{}-shot_{}-queries'.format(
         args.dataset, args.n_ways, args.k_shots, args.q_shots), args.experiment, args)
 
-
 ## Testing ##
-
 for model_name in os.listdir(args.model_path):
-    #learner = torch.load('{}/{}'.format(args.model_path, model_name))
-    learner.load_state_dict(torch.load('{}/{}'.format(args.model_path, model_name), map_location=args.device))
+    state_dict = torch.load('{}/{}'.format(args.model_path, model_name), map_location=args.device)
+    new_state_dict = {}
+    for old_key in state_dict.keys():  # This is weird for sure, Hacks
+        new_key = old_key.replace(".net.", ".net.module.")
+        new_key = new_key.replace(".fe.", ".fe.module.")
+        new_state_dict[new_key] = state_dict[old_key]
+    learner.load_state_dict(new_state_dict)
     learner = learner.to(args.device)
     print('Testing on held out classes')
     for t in range(args.times):
         for i, tetask in enumerate(test_tasks):
-            
+
             model = learner.clone()
             if args.extra == 'Yes':
                 evaluation_loss, evaluation_accuracy, reconst_img, query_imgs, mu_l, log_var_l, mu_s, log_var_s, logits, labels, mu_l_0, log_var_l_0, mu_s_0, log_var_s_0 = inner_adapt_trident(
-                    tetask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_test, args.device, True, args, "Yes")
+                    tetask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_test,
+                    args.device, True, args, "Yes")
             elif args.extra == 'No':
                 evaluation_loss, evaluation_accuracy, reconst_img, query_imgs, mu_l, log_var_l, mu_s, log_var_s, logits, labels = inner_adapt_trident(
-                    tetask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_test, args.device, True, args, "No")
+                    tetask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_test,
+                    args.device, True, args, "No")
 
             # Logging test-task logits and ground-truth labels
-            tmp = np.array(torch.cat([torch.full((args.n_ways*args.q_shots, 1), i), logits, labels.unsqueeze(dim=1)], axis=1))
+            tmp = np.array(
+                torch.cat([torch.full((args.n_ways * args.q_shots, 1), i), logits, labels.unsqueeze(dim=1)], axis=1))
             profiler.log_csv(tmp, 'preds')
-            
+
             # Logging per test-task losses and accuracies
             tmp = [i, evaluation_accuracy.item()]
             tmp = tmp + [a.item() for a in evaluation_loss.values()]
@@ -124,10 +132,9 @@ for model_name in os.listdir(args.model_path):
             # Logging latents before and after adaptation
             if args.extra == 'Yes':
                 dl_0 = {"label_latents": [mu_l_0, log_var_l_0],
-                  "style_latents": [mu_s_0, log_var_s_0]}
+                        "style_latents": [mu_s_0, log_var_s_0]}
                 profiler.log_data(dl_0, i, 'latents_0', 'test')
 
                 dl = {"label_latents": [mu_l, log_var_l],
-                    "style_latents": [mu_s, log_var_s]}
-                profiler.log_data(dl, i, 'latents', 'test')  
-
+                      "style_latents": [mu_s, log_var_s]}
+                profiler.log_data(dl, i, 'latents', 'test')

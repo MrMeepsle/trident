@@ -10,7 +10,7 @@ class Profiler():
         #columns = columns.append(additional)
         df = pd.DataFrame(columns=self.columns)
         self.args = args
-        self.path = '/home/nfs/anujsingh/meta_lrng/files/folder/learning_to_meta-learn/logs/' + name + '/' + experiment
+        self.path = './output/' + name + '/' + experiment # Please make this changable
         os.makedirs(self.path, mode=0o777)
 
         self.path_train = self.path + '/' + 'train.csv'
@@ -45,8 +45,10 @@ class Profiler():
         torch.save(data, self.path_data)
     
     def log_model(self, model, opt, epoch):
+        print("saving_model")
         self.path_model = self.path + '/' + 'model_' + str(epoch) + '.pt'
         self.path_opt = self.path + '/' + 'opt_' + str(epoch) + '.pt'
+        # print(model.state_dict())
         torch.save(model.state_dict(), self.path_model)
         torch.save(opt.state_dict(), self.path_opt)
 

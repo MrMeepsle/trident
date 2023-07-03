@@ -3,7 +3,7 @@ import argparse
 import json
 from torch._C import device
 
-#import numpy as np
+# import numpy as np
 import tqdm
 import torch
 from torch import nn
@@ -51,7 +51,6 @@ with open(args.cnfg) as f:
     args = argparse.Namespace()
     args.__dict__.update(argparse_dict)
 
-
 # TODO: fix this bool/str shit
 
 if args.order == 'True':
@@ -74,37 +73,42 @@ if args.task_adapt == 'True':
 elif args.task_adapt == 'False':
     args.task_adapt = False
 
-
 # Generating Tasks, initializing learners, loss, meta - optimizer and profilers
 _, valid_tasks, _, learner = setup(
-    args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device, download=args.download, task_adapt=args.task_adapt, args=args)
+    args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device,
+    download=args.download, task_adapt=args.task_adapt, args=args)
 reconst_loss = nn.MSELoss(reduction='none')
 if args.order == False:
     profiler = Profiler('TRIDENT_valid_{}_{}-way_{}-shot_{}-queries'.format(args.dataset,
-                        args.n_ways, args.k_shots, args.q_shots), args.experiment, args)
+                                                                            args.n_ways, args.k_shots, args.q_shots),
+                        args.experiment, args)
 
 elif args.order == True:
     profiler = Profiler('FO-TRIDENT_{}_{}-way_{}-shot_{}-queries'.format(
         args.dataset, args.n_ways, args.k_shots, args.q_shots), args.experiment, args)
 
-
 ## Testing ##
 
 for model_name in os.listdir(args.model_path):
-    learner.load_state_dict(torch.load('{}/{}'.format(args.model_path, model_name), map_location=args.device))
+    state_dict = torch.load('{}/{}'.format(args.model_path, model_name), map_location=args.device)
+    new_state_dict = {}
+    for old_key in state_dict.keys():  # This is weird for sure, Hacks, might have to do with nn.parallel
+        new_key = old_key.replace(".net.", ".net.module.")
+        new_key = new_key.replace(".fe.", ".fe.module.")
+        new_state_dict[new_key] = state_dict[old_key]
+    learner.load_state_dict(new_state_dict)
     learner = learner.to(args.device)
     print('Testing models on held out validation classes')
 
     for i in range(args.batch_size):
-        
         model = learner.clone()
         valtask = valid_tasks.sample()
         evaluation_loss, evaluation_accuracy = inner_adapt_trident(
-            valtask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_val, args.device, False, args, "No")
+            valtask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_val,
+            args.device, False, args, "No")
 
         # Logging per test-task losses and accuracies
         tmp = [i, evaluation_accuracy.item()]
         tmp = tmp + [a.item() for a in evaluation_loss.values()]
         tmp = tmp + [model_name]
         profiler.log_csv(tmp, 'valid')
-        
