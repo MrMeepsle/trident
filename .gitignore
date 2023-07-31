@@ -9,6 +9,10 @@ improve_delpo
 data/cub_meta-info.json
 data/fungi_meta-info.json
 data/aircraft_meta-info.json
+dataset
+.idea/
+output
+models
 
 # Notebooks
 src/pre-models.ipynb
@@ -41,6 +45,7 @@ src/miniloader.py
 src/proto.py
 src/protol2ltest.py
 src/test.py
+src/__pycache__/
 
 src/zoo/archs_og.py
 src/zoo/delpo_epi_utils.py
@@ -50,6 +55,6 @@ src/zoo/lpo_utils.py
 src/zoo/maml_utils.py
 src/zoo/matching_nets_utils.py
 src/zoo/proto_utils.py
+src/zoo/__pycache__/
 
-
-.idea/
+data/__pycache__/

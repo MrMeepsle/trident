@@ -6,6 +6,7 @@ import tarfile
 import shutil
 import zipfile
 import requests
+import yaml
 from PIL import Image
 from collections import defaultdict
 
@@ -34,7 +35,7 @@ class Omniglotmix(Dataset):
         bg = torchvision.datasets.omniglot.Omniglot(
             background=True, root=self.root, download=download)
         eval = torchvision.datasets.omniglot.Omniglot(
-            background=False, root=self.root, download=download, target_transform=lambda x: x+964)
+            background=False, root=self.root, download=download, target_transform=lambda x: x + 964)
         # target_transform the labels of eval before concatting since they would overwrite the bg labels (bg has 964 classes)
         # add other unlabeled datasets here for unsupervised/semi-supervised few-shot
         self.dataset = ConcatDataset((bg, eval))
@@ -75,7 +76,6 @@ def index_classes(items):
 
 
 class MiniImageNet(Dataset):
-
     """
     Consists of 60'000 colour images of sizes 84x84 pixels.
     The dataset is divided in 3 splits of 64 training, 16 validation, and 20 testing classes each containing 600 examples.
@@ -136,7 +136,7 @@ class MiniImageNet(Dataset):
         self.class_idx = index_classes(self.data['class_dict'].keys())
         for class_name, idxs in self.data['class_dict'].items():
             for idx in idxs:
-                self.y[idx] = self.class_idx[class_name]
+                self.y[idx] = self.class_idx[class_name]  # So format is 'class': [indexes that have this class]
 
     def __getitem__(self, idx):
         data = self.x[idx]
@@ -150,8 +150,8 @@ class MiniImageNet(Dataset):
     def _check_exists(self):
         return os.path.exists(os.path.join(self.root, 'mini-imagenet-cache-' + self.mode + '.pkl'))
 
+
 class TieredImagenet(Dataset):
-    
     """
     Like *mini*-ImageNet, *tiered*-ImageNet builds on top of ILSVRC-12, but consists of 608 classes (779,165 images) instead of 100.
     The train-validation-test split is made such that classes from similar categories are in the same splits.
@@ -224,96 +224,97 @@ class TieredImagenet(Dataset):
                                            'tiered-imagenet',
                                            'train_images_png.pkl'))
 
+
 ## CUB Meta-Data ##
 SPLITS = {
     'train': ['001.Black_footed_Albatross', '003.Sooty_Albatross',
-       '005.Crested_Auklet', '007.Parakeet_Auklet',
-       '009.Brewer_Blackbird', '011.Rusty_Blackbird', '013.Bobolink',
-       '015.Lazuli_Bunting', '017.Cardinal', '019.Gray_Catbird',
-       '021.Eastern_Towhee', '023.Brandt_Cormorant',
-       '025.Pelagic_Cormorant', '027.Shiny_Cowbird', '029.American_Crow',
-       '031.Black_billed_Cuckoo', '033.Yellow_billed_Cuckoo',
-       '035.Purple_Finch', '037.Acadian_Flycatcher',
-       '039.Least_Flycatcher', '041.Scissor_tailed_Flycatcher',
-       '043.Yellow_bellied_Flycatcher', '045.Northern_Fulmar',
-       '047.American_Goldfinch', '049.Boat_tailed_Grackle',
-       '051.Horned_Grebe', '053.Western_Grebe', '055.Evening_Grosbeak',
-       '057.Rose_breasted_Grosbeak', '059.California_Gull',
-       '061.Heermann_Gull', '063.Ivory_Gull', '065.Slaty_backed_Gull',
-       '067.Anna_Hummingbird', '069.Rufous_Hummingbird',
-       '071.Long_tailed_Jaeger', '073.Blue_Jay', '075.Green_Jay',
-       '077.Tropical_Kingbird', '079.Belted_Kingfisher',
-       '081.Pied_Kingfisher', '083.White_breasted_Kingfisher',
-       '085.Horned_Lark', '087.Mallard', '089.Hooded_Merganser',
-       '091.Mockingbird', '093.Clark_Nutcracker', '095.Baltimore_Oriole',
-       '097.Orchard_Oriole', '099.Ovenbird', '101.White_Pelican',
-       '103.Sayornis', '105.Whip_poor_Will', '107.Common_Raven',
-       '109.American_Redstart', '111.Loggerhead_Shrike',
-       '113.Baird_Sparrow', '115.Brewer_Sparrow',
-       '117.Clay_colored_Sparrow', '119.Field_Sparrow',
-       '121.Grasshopper_Sparrow', '123.Henslow_Sparrow',
-       '125.Lincoln_Sparrow', '127.Savannah_Sparrow', '129.Song_Sparrow',
-       '131.Vesper_Sparrow', '133.White_throated_Sparrow',
-       '135.Bank_Swallow', '137.Cliff_Swallow', '139.Scarlet_Tanager',
-       '141.Artic_Tern', '143.Caspian_Tern', '145.Elegant_Tern',
-       '147.Least_Tern', '149.Brown_Thrasher', '151.Black_capped_Vireo',
-       '153.Philadelphia_Vireo', '155.Warbling_Vireo',
-       '157.Yellow_throated_Vireo', '159.Black_and_white_Warbler',
-       '161.Blue_winged_Warbler', '163.Cape_May_Warbler',
-       '165.Chestnut_sided_Warbler', '167.Hooded_Warbler',
-       '169.Magnolia_Warbler', '171.Myrtle_Warbler',
-       '173.Orange_crowned_Warbler', '175.Pine_Warbler',
-       '177.Prothonotary_Warbler', '179.Tennessee_Warbler',
-       '181.Worm_eating_Warbler', '183.Northern_Waterthrush',
-       '185.Bohemian_Waxwing', '187.American_Three_toed_Woodpecker',
-       '189.Red_bellied_Woodpecker', '191.Red_headed_Woodpecker',
-       '193.Bewick_Wren', '195.Carolina_Wren', '197.Marsh_Wren',
-       '199.Winter_Wren'],
-       
-       'test': ['004.Groove_billed_Ani', '008.Rhinoceros_Auklet',
-       '012.Yellow_headed_Blackbird', '016.Painted_Bunting',
-       '020.Yellow_breasted_Chat', '024.Red_faced_Cormorant',
-       '028.Brown_Creeper', '032.Mangrove_Cuckoo', '036.Northern_Flicker',
-       '040.Olive_sided_Flycatcher', '044.Frigatebird',
-       '048.European_Goldfinch', '052.Pied_billed_Grebe',
-       '056.Pine_Grosbeak', '060.Glaucous_winged_Gull',
-       '064.Ring_billed_Gull', '068.Ruby_throated_Hummingbird',
-       '072.Pomarine_Jaeger', '076.Dark_eyed_Junco',
-       '080.Green_Kingfisher', '084.Red_legged_Kittiwake',
-       '088.Western_Meadowlark', '092.Nighthawk', '096.Hooded_Oriole',
-       '100.Brown_Pelican', '104.American_Pipit',
-       '108.White_necked_Raven', '112.Great_Grey_Shrike',
-       '116.Chipping_Sparrow', '120.Fox_Sparrow', '124.Le_Conte_Sparrow',
-       '128.Seaside_Sparrow', '132.White_crowned_Sparrow',
-       '136.Barn_Swallow', '140.Summer_Tanager', '144.Common_Tern',
-       '148.Green_tailed_Towhee', '152.Blue_headed_Vireo',
-       '156.White_eyed_Vireo', '160.Black_throated_Blue_Warbler',
-       '164.Cerulean_Warbler', '168.Kentucky_Warbler',
-       '172.Nashville_Warbler', '176.Prairie_Warbler',
-       '180.Wilson_Warbler', '184.Louisiana_Waterthrush',
-       '188.Pileated_Woodpecker', '192.Downy_Woodpecker',
-       '196.House_Wren', '200.Common_Yellowthroat'],
+              '005.Crested_Auklet', '007.Parakeet_Auklet',
+              '009.Brewer_Blackbird', '011.Rusty_Blackbird', '013.Bobolink',
+              '015.Lazuli_Bunting', '017.Cardinal', '019.Gray_Catbird',
+              '021.Eastern_Towhee', '023.Brandt_Cormorant',
+              '025.Pelagic_Cormorant', '027.Shiny_Cowbird', '029.American_Crow',
+              '031.Black_billed_Cuckoo', '033.Yellow_billed_Cuckoo',
+              '035.Purple_Finch', '037.Acadian_Flycatcher',
+              '039.Least_Flycatcher', '041.Scissor_tailed_Flycatcher',
+              '043.Yellow_bellied_Flycatcher', '045.Northern_Fulmar',
+              '047.American_Goldfinch', '049.Boat_tailed_Grackle',
+              '051.Horned_Grebe', '053.Western_Grebe', '055.Evening_Grosbeak',
+              '057.Rose_breasted_Grosbeak', '059.California_Gull',
+              '061.Heermann_Gull', '063.Ivory_Gull', '065.Slaty_backed_Gull',
+              '067.Anna_Hummingbird', '069.Rufous_Hummingbird',
+              '071.Long_tailed_Jaeger', '073.Blue_Jay', '075.Green_Jay',
+              '077.Tropical_Kingbird', '079.Belted_Kingfisher',
+              '081.Pied_Kingfisher', '083.White_breasted_Kingfisher',
+              '085.Horned_Lark', '087.Mallard', '089.Hooded_Merganser',
+              '091.Mockingbird', '093.Clark_Nutcracker', '095.Baltimore_Oriole',
+              '097.Orchard_Oriole', '099.Ovenbird', '101.White_Pelican',
+              '103.Sayornis', '105.Whip_poor_Will', '107.Common_Raven',
+              '109.American_Redstart', '111.Loggerhead_Shrike',
+              '113.Baird_Sparrow', '115.Brewer_Sparrow',
+              '117.Clay_colored_Sparrow', '119.Field_Sparrow',
+              '121.Grasshopper_Sparrow', '123.Henslow_Sparrow',
+              '125.Lincoln_Sparrow', '127.Savannah_Sparrow', '129.Song_Sparrow',
+              '131.Vesper_Sparrow', '133.White_throated_Sparrow',
+              '135.Bank_Swallow', '137.Cliff_Swallow', '139.Scarlet_Tanager',
+              '141.Artic_Tern', '143.Caspian_Tern', '145.Elegant_Tern',
+              '147.Least_Tern', '149.Brown_Thrasher', '151.Black_capped_Vireo',
+              '153.Philadelphia_Vireo', '155.Warbling_Vireo',
+              '157.Yellow_throated_Vireo', '159.Black_and_white_Warbler',
+              '161.Blue_winged_Warbler', '163.Cape_May_Warbler',
+              '165.Chestnut_sided_Warbler', '167.Hooded_Warbler',
+              '169.Magnolia_Warbler', '171.Myrtle_Warbler',
+              '173.Orange_crowned_Warbler', '175.Pine_Warbler',
+              '177.Prothonotary_Warbler', '179.Tennessee_Warbler',
+              '181.Worm_eating_Warbler', '183.Northern_Waterthrush',
+              '185.Bohemian_Waxwing', '187.American_Three_toed_Woodpecker',
+              '189.Red_bellied_Woodpecker', '191.Red_headed_Woodpecker',
+              '193.Bewick_Wren', '195.Carolina_Wren', '197.Marsh_Wren',
+              '199.Winter_Wren'],
 
-       'validation': ['002.Laysan_Albatross', '006.Least_Auklet',
-       '010.Red_winged_Blackbird', '014.Indigo_Bunting',
-       '018.Spotted_Catbird', '022.Chuck_will_Widow',
-       '026.Bronzed_Cowbird', '030.Fish_Crow',
-       '034.Gray_crowned_Rosy_Finch', '038.Great_Crested_Flycatcher',
-       '042.Vermilion_Flycatcher', '046.Gadwall', '050.Eared_Grebe',
-       '054.Blue_Grosbeak', '058.Pigeon_Guillemot', '062.Herring_Gull',
-       '066.Western_Gull', '070.Green_Violetear', '074.Florida_Jay',
-       '078.Gray_Kingbird', '082.Ringed_Kingfisher', '086.Pacific_Loon',
-       '090.Red_breasted_Merganser', '094.White_breasted_Nuthatch',
-       '098.Scott_Oriole', '102.Western_Wood_Pewee', '106.Horned_Puffin',
-       '110.Geococcyx', '114.Black_throated_Sparrow', '118.House_Sparrow',
-       '122.Harris_Sparrow', '126.Nelson_Sharp_tailed_Sparrow',
-       '130.Tree_Sparrow', '134.Cape_Glossy_Starling', '138.Tree_Swallow',
-       '142.Black_Tern', '146.Forsters_Tern', '150.Sage_Thrasher',
-       '154.Red_eyed_Vireo', '158.Bay_breasted_Warbler',
-       '162.Canada_Warbler', '166.Golden_winged_Warbler',
-       '170.Mourning_Warbler', '174.Palm_Warbler', '178.Swainson_Warbler',
-       '182.Yellow_Warbler', '186.Cedar_Waxwing',
-       '190.Red_cockaded_Woodpecker', '194.Cactus_Wren', '198.Rock_Wren']
+    'test': ['004.Groove_billed_Ani', '008.Rhinoceros_Auklet',
+             '012.Yellow_headed_Blackbird', '016.Painted_Bunting',
+             '020.Yellow_breasted_Chat', '024.Red_faced_Cormorant',
+             '028.Brown_Creeper', '032.Mangrove_Cuckoo', '036.Northern_Flicker',
+             '040.Olive_sided_Flycatcher', '044.Frigatebird',
+             '048.European_Goldfinch', '052.Pied_billed_Grebe',
+             '056.Pine_Grosbeak', '060.Glaucous_winged_Gull',
+             '064.Ring_billed_Gull', '068.Ruby_throated_Hummingbird',
+             '072.Pomarine_Jaeger', '076.Dark_eyed_Junco',
+             '080.Green_Kingfisher', '084.Red_legged_Kittiwake',
+             '088.Western_Meadowlark', '092.Nighthawk', '096.Hooded_Oriole',
+             '100.Brown_Pelican', '104.American_Pipit',
+             '108.White_necked_Raven', '112.Great_Grey_Shrike',
+             '116.Chipping_Sparrow', '120.Fox_Sparrow', '124.Le_Conte_Sparrow',
+             '128.Seaside_Sparrow', '132.White_crowned_Sparrow',
+             '136.Barn_Swallow', '140.Summer_Tanager', '144.Common_Tern',
+             '148.Green_tailed_Towhee', '152.Blue_headed_Vireo',
+             '156.White_eyed_Vireo', '160.Black_throated_Blue_Warbler',
+             '164.Cerulean_Warbler', '168.Kentucky_Warbler',
+             '172.Nashville_Warbler', '176.Prairie_Warbler',
+             '180.Wilson_Warbler', '184.Louisiana_Waterthrush',
+             '188.Pileated_Woodpecker', '192.Downy_Woodpecker',
+             '196.House_Wren', '200.Common_Yellowthroat'],
+
+    'validation': ['002.Laysan_Albatross', '006.Least_Auklet',
+                   '010.Red_winged_Blackbird', '014.Indigo_Bunting',
+                   '018.Spotted_Catbird', '022.Chuck_will_Widow',
+                   '026.Bronzed_Cowbird', '030.Fish_Crow',
+                   '034.Gray_crowned_Rosy_Finch', '038.Great_Crested_Flycatcher',
+                   '042.Vermilion_Flycatcher', '046.Gadwall', '050.Eared_Grebe',
+                   '054.Blue_Grosbeak', '058.Pigeon_Guillemot', '062.Herring_Gull',
+                   '066.Western_Gull', '070.Green_Violetear', '074.Florida_Jay',
+                   '078.Gray_Kingbird', '082.Ringed_Kingfisher', '086.Pacific_Loon',
+                   '090.Red_breasted_Merganser', '094.White_breasted_Nuthatch',
+                   '098.Scott_Oriole', '102.Western_Wood_Pewee', '106.Horned_Puffin',
+                   '110.Geococcyx', '114.Black_throated_Sparrow', '118.House_Sparrow',
+                   '122.Harris_Sparrow', '126.Nelson_Sharp_tailed_Sparrow',
+                   '130.Tree_Sparrow', '134.Cape_Glossy_Starling', '138.Tree_Swallow',
+                   '142.Black_Tern', '146.Forsters_Tern', '150.Sage_Thrasher',
+                   '154.Red_eyed_Vireo', '158.Bay_breasted_Warbler',
+                   '162.Canada_Warbler', '166.Golden_winged_Warbler',
+                   '170.Mourning_Warbler', '174.Palm_Warbler', '178.Swainson_Warbler',
+                   '182.Yellow_Warbler', '186.Cedar_Waxwing',
+                   '190.Red_cockaded_Woodpecker', '194.Cactus_Wren', '198.Rock_Wren']
 }
 # SPLITS = {
 #     'train': [
@@ -577,8 +578,98 @@ IMAGENET_DUPLICATES = {
 
 IMAGENET_DUPLICATES['all'] = sum(IMAGENET_DUPLICATES.values(), [])
 
-class CUBirds200(Dataset):
 
+class CustomDS(Dataset):
+    """
+    The dataset consists of 6,033 bird images classified into 200 bird species.
+    The train set consists of 140 classes, while the validation and test sets each contain 30.
+    This dataset includes 43 images that overlap with the ImageNet dataset.
+    # Arguments:
+    * **root** (str) - Path to download the data.
+    * **mode** (str, *optional*, default='train') - Which split to use.
+        Must be 'train', 'validation', or 'test'.
+    * **transform** (Transform, *optional*, default=None) - Input pre-processing.
+    * **target_transform** (Transform, *optional*, default=None) - Target pre-processing.
+    * **download** (bool, *optional*, default=False) - Whether to download the dataset.
+    * **include_imagenet_duplicates** (bool, *optional*, default=False) - Whether to include images that are also present in the ImageNet 2012 dataset.
+
+    # Example:
+    train_dataset = CUBirds200(root='./data', mode='train')
+    train_dataset = l2l.data.MetaDataset(train_dataset)
+    train_generator = l2l.data.TaskDataset(dataset=train_dataset, num_tasks=1000)
+    """
+
+    def __init__(
+            self,
+            root,
+            mode='all',
+            transform=None,
+            target_transform=None,
+            download=False,
+            include_imagenet_duplicates=False,
+            bounding_box_crop=False,
+    ):
+        root = os.path.expanduser(root)
+        self.root = root
+        self.mode = mode
+        self.transform = transform
+        self.target_transform = target_transform
+        self.include_imagenet_duplicates = include_imagenet_duplicates
+        self.bounding_box_crop = bounding_box_crop
+        self._bookkeeping_path = os.path.join(
+            self.root,
+            'custom-' + mode + '-bookkeeping.pkl'
+        )
+        self.DATA_DIR = 'custom'
+
+        if not self._check_exists():
+            raise Exception("You forget to add the dataset, you chicken nugget!")
+
+        self.splits = self._get_splits(splits_file="splits.yml")
+        self.data = self.load_data(mode)
+
+    def _check_exists(self):
+        data_path = os.path.join(self.root, self.DATA_DIR)
+        return os.path.exists(data_path)
+
+    def _get_splits(self, splits_file):
+        with open(os.path.join(self.root, self.DATA_DIR, splits_file), 'r') as stream:
+            return yaml.safe_load(stream)
+
+    def load_data(self, mode='train'):
+        classes = sum(self.splits.values(), []) if mode == 'all' else self.splits[
+            mode]  # Get all training/test/val classes
+        images_path = os.path.join(
+            self.root,
+            self.DATA_DIR,
+            'images',
+        )
+
+        data = []
+        for class_idx, class_name in enumerate(classes):  # Give each class name an index
+            class_path = os.path.join(images_path, class_name)
+            filenames = os.listdir(class_path)  # find all images in dir
+            for image_file in filenames:
+                image_path = os.path.join(class_path, image_file)
+                data.append((image_path, class_idx))
+
+        return data
+
+    def __getitem__(self, i):
+        image_path, label = self.data[i]
+        image = Image.open(image_path).convert('RGB')
+        if self.transform is not None:
+            image = self.transform(image)
+        if self.target_transform is not None:
+            label = self.target_transform(label)
+        return image, label
+
+    def __len__(self):
+        length = len(self.data)
+        return length
+
+
+class CUBirds200(Dataset):
     """
     The dataset consists of 6,033 bird images classified into 200 bird species.
     The train set consists of 140 classes, while the validation and test sets each contain 30.
@@ -599,14 +690,14 @@ class CUBirds200(Dataset):
     """
 
     def __init__(
-        self,
-        root,
-        mode='all',
-        transform=None,
-        target_transform=None,
-        download=False,
-        include_imagenet_duplicates=False,
-        bounding_box_crop=False,
+            self,
+            root,
+            mode='all',
+            transform=None,
+            target_transform=None,
+            download=False,
+            include_imagenet_duplicates=False,
+            bounding_box_crop=False,
     ):
         root = os.path.expanduser(root)
         self.root = root
@@ -679,7 +770,7 @@ class CUBirds200(Dataset):
                     int(float(line[3])),
                     int(float(line[4])),
                 )
-                bbox_content[id2img[line[0]]] = (x, y, x+width, y+height)
+                bbox_content[id2img[line[0]]] = (x, y, x + width, y + height)
 
         # read images from disk
         for class_idx, class_name in enumerate(classes):
@@ -687,7 +778,7 @@ class CUBirds200(Dataset):
             filenames = os.listdir(class_path)
             for image_file in filenames:
                 if self.include_imagenet_duplicates or \
-                   image_file not in duplicates:
+                        image_file not in duplicates:
                     image_path = os.path.join(class_path, image_file)
                     if self.bounding_box_crop:
                         self.bounding_boxes[image_path] = bbox_content[os.path.join(class_name, image_file)]
@@ -788,8 +879,8 @@ class CUBirds200(Dataset):
     #     length = len(self.data)
     #     return length
 
-class CIFARFS(ImageFolder):
 
+class CIFARFS(ImageFolder):
     """
     Consists of 60'000 colour images of sizes 32x32 pixels.
     The dataset is divided in 3 splits of 64 training, 16 validation, and 20 testing classes each containing 600 examples.
@@ -876,7 +967,6 @@ class CIFARFS(ImageFolder):
 
 
 class FGVCAircraft(Dataset):
-
     """
     The dataset consists of 10,200 images of aircraft (102 classes, each 100 images).
     # Arguments:
@@ -908,7 +998,7 @@ class FGVCAircraft(Dataset):
         with open('aircraft_meta-info.json') as file:
             aircraft_data = json.load(file)
             file.close()
-        
+
         if not self._check_exists() and download:
             self.download()
 
@@ -984,7 +1074,6 @@ class FGVCAircraft(Dataset):
 
 
 class FGVCFungi(Dataset):
-
     """
     The dataset consists of 1,394 classes and 89,760 images of fungi.
     # Arguments:
@@ -1058,7 +1147,8 @@ class FGVCFungi(Dataset):
             valid_path = os.path.join(data_path, 'val.json')
             with open(valid_path, 'r') as f_valid:
                 valid_annotations = json.load(f_valid)
-            split_classes = sum(self.fungi_data['SPLITS'].values(), []) if mode == 'all' else self.fungi_data['SPLITS'][mode]
+            split_classes = sum(self.fungi_data['SPLITS'].values(), []) if mode == 'all' else self.fungi_data['SPLITS'][
+                mode]
             split_classes = [int(cls[:4]) for cls in split_classes]
 
             # Create bookkeeping
@@ -1069,7 +1159,7 @@ class FGVCFungi(Dataset):
             # Process
             all_images = train_annotations['images'] + valid_annotations['images']
             all_annotations = train_annotations['annotations'] \
-                + valid_annotations['annotations']
+                              + valid_annotations['annotations']
             counter = 0
             for image, annotation in zip(all_images, all_annotations):
                 assert image['id'] == annotation['image_id']
@@ -1117,7 +1207,6 @@ class FGVCFungi(Dataset):
 
 
 class VGGFlower102(Dataset):
-
     """
     The dataset consists of 102 classes of flowers, with each class consisting of 40 to 258 images.
     # Arguments:
@@ -1148,15 +1237,15 @@ class VGGFlower102(Dataset):
         self.LABELS_PATH = 'imagelabels.mat'
 
         self.SPLITS = {
-    'train': [90, 38, 80, 30, 29, 12, 43, 27, 4, 64, 31, 99, 8, 67, 95, 77,
-              78, 61, 88, 74, 55, 32, 21, 13, 79, 70, 51, 69, 14, 60, 11, 39,
-              63, 37, 36, 28, 48, 7, 93, 2, 18, 24, 6, 3, 44, 76, 75, 72, 52,
-              84, 73, 34, 54, 66, 59, 50, 91, 68, 100, 71, 81, 101, 92, 22,
-              33, 87, 1, 49, 20, 25, 58],
-    'validation': [10, 16, 17, 23, 26, 47, 53, 56, 57, 62, 82, 83, 86, 97, 102],
-    'test': [5, 9, 15, 19, 35, 40, 41, 42, 45, 46, 65, 85, 89, 94, 96, 98],
-    'all': list(range(1, 103)),
-}
+            'train': [90, 38, 80, 30, 29, 12, 43, 27, 4, 64, 31, 99, 8, 67, 95, 77,
+                      78, 61, 88, 74, 55, 32, 21, 13, 79, 70, 51, 69, 14, 60, 11, 39,
+                      63, 37, 36, 28, 48, 7, 93, 2, 18, 24, 6, 3, 44, 76, 75, 72, 52,
+                      84, 73, 34, 54, 66, 59, 50, 91, 68, 100, 71, 81, 101, 92, 22,
+                      33, 87, 1, 49, 20, 25, 58],
+            'validation': [10, 16, 17, 23, 26, 47, 53, 56, 57, 62, 82, 83, 86, 97, 102],
+            'test': [5, 9, 15, 19, 35, 40, 41, 42, 45, 46, 65, 85, 89, 94, 96, 98],
+            'all': list(range(1, 103)),
+        }
 
         if not self._check_exists() and download:
             self.download()

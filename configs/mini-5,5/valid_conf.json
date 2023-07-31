@@ -1,6 +1,6 @@
 {
 "dataset": "miniimagenet",
-"root": "./dataset/mini_imagenet",
+"root": "./dataset/mini-imagenet",
 "model_path": "./models/mini-5,5",
 "n_ways": 5,
 "k_shots": 5,
@@ -18,7 +18,7 @@
 "zl": 64,
 "zs": 64,
 "task_adapt": "True",
-"experiment": "exp1",
+"experiment": "exp10",
 "order": "False",
 "device": "cuda"
 }
