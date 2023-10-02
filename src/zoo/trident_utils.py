@@ -109,7 +109,7 @@ def loss(reconst_loss: object, reconst_image, image, logits, labels, mu_s, log_v
 
 
 def inner_adapt_trident(task, reconst_loss, learner, n_ways, k_shots, q_shots, adapt_steps, device, log_data: bool,
-                        args, extra):
+                        args, extra, original_labels=None):
     data, labels = task
     if args.dataset == 'miniimagenet':
         data, labels = data.to(device) / 255.0, labels.to(device)
@@ -126,6 +126,13 @@ def inner_adapt_trident(task, reconst_loss, learner, n_ways, k_shots, q_shots, a
     support_labels = labels[np.where(queries_index == 0)]
     queries = data[np.where(queries_index == 1)]
     queries_labels = labels[np.where(queries_index == 1)]
+    if original_labels is not None:
+        original_support_labels = np.asarray(original_labels)[np.where(queries_index == 0)]
+        print(len(support_labels))
+        original_labels = np.asarray(original_labels)[np.where(queries_index == 1)]
+        print(len(original_labels))
+    else:
+        original_support_labels = None
 
     # Logging latent spaces of queries before meta-adaptation
     if extra == "Yes":
@@ -147,7 +154,10 @@ def inner_adapt_trident(task, reconst_loss, learner, n_ways, k_shots, q_shots, a
         adapt_loss = loss(reconst_loss, reconst_image, support,
                           logits, support_labels, mu_s, log_var_s, mu_l, log_var_l, args.reconstr, args.wt_ce,
                           args.klwt, args.rec_wt, args.beta_l, args.beta_s)
-        learner.adapt(adapt_loss['elbo'])
+        if 'finetune' in args:
+            learner.adapt(adapt_loss['elbo'], allow_nograd=args.finetune)
+        else:
+            learner.adapt(adapt_loss['elbo'])
         torch.nn.utils.clip_grad_norm_(learner.parameters(), 1)
 
     if args.task_adapt:
@@ -165,11 +175,11 @@ def inner_adapt_trident(task, reconst_loss, learner, n_ways, k_shots, q_shots, a
     if log_data and (extra == 'Yes'):
         return eval_loss, eval_acc, reconst_image.detach().to('cpu'), queries.detach().to('cpu'), mu_l.detach().to(
             'cpu'), log_var_l.detach().to('cpu'), mu_s.detach().to('cpu'), log_var_s.detach().to(
-            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to('cpu'), mu_l_0.detach().to(
+            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to('cpu'), original_labels, original_support_labels, mu_l_0.detach().to(
             'cpu'), log_var_l_0.detach().to('cpu'), mu_s_0.detach().to('cpu'), log_var_s_0.detach().to('cpu')
     elif log_data and (extra == 'No'):
         return eval_loss, eval_acc, reconst_image.detach().to('cpu'), queries.detach().to('cpu'), mu_l.detach().to(
             'cpu'), log_var_l.detach().to('cpu'), mu_s.detach().to('cpu'), log_var_s.detach().to(
-            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to('cpu')
+            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to('cpu'), original_labels, original_support_labels
     else:
         return eval_loss, eval_acc

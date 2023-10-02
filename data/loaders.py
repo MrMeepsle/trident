@@ -623,25 +623,25 @@ class CustomDS(Dataset):
         self.DATA_DIR = 'custom'
 
         if not self._check_exists():
-            raise Exception("You forget to add the dataset, you chicken nugget!")
+            raise Exception("You forgot to add the dataset, you chicken nugget!")
 
         self.splits = self._get_splits(splits_file="splits.yml")
         self.data = self.load_data(mode)
 
     def _check_exists(self):
-        data_path = os.path.join(self.root, self.DATA_DIR)
-        return os.path.exists(data_path)
+        return os.path.exists(self.root)
 
     def _get_splits(self, splits_file):
-        with open(os.path.join(self.root, self.DATA_DIR, splits_file), 'r') as stream:
+        with open(os.path.join(self.root, splits_file), 'r') as stream:
             return yaml.safe_load(stream)
 
     def load_data(self, mode='train'):
         classes = sum(self.splits.values(), []) if mode == 'all' else self.splits[
             mode]  # Get all training/test/val classes
+        # print(classes)
         images_path = os.path.join(
             self.root,
-            self.DATA_DIR,
+            # self.DATA_DIR,
             'images',
         )
 
@@ -658,6 +658,12 @@ class CustomDS(Dataset):
     def __getitem__(self, i):
         image_path, label = self.data[i]
         image = Image.open(image_path).convert('RGB')
+        # print(image)
+        # raise Exception("boela")
+        # if image.mode == 'RGBA':
+        #     background = Image.new("RGB", png.size, (255, 255, 255))
+        #     background.paste(png, mask=png.split()[3])  # 3 is the alpha channel
+        #          .convert('RGB'))
         if self.transform is not None:
             image = self.transform(image)
         if self.target_transform is not None:

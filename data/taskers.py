@@ -1,4 +1,7 @@
+from collections import defaultdict
+
 import learn2learn as l2l
+import numpy as np
 
 from data.loaders import CIFARFS, CUBirds200, MiniImageNet, Omniglotmix, TieredImagenet, CustomDS
 
@@ -104,16 +107,29 @@ def gen_tasks(dataname, root, image_transforms=None, target_transforms=None, dow
     elif (dataname == 'custom'):
         tiered = CustomDS(root, mode, transform=image_transforms,
                           target_transform=target_transforms, download=download)
+        # print(tiered.data)
         dataset = l2l.data.MetaDataset(tiered)
 
+        # print(dataset)
+        # label_list = [i for i in np.arange(len(tiered.data))]
+        # print(label_list)
+        # print(num_tasks)
         trans = [
             l2l.data.transforms.FusedNWaysKShots(dataset,
                                                  n=n_ways,
                                                  k=k_shots + q_shots),
+                                                 # filter_labels=label_list),
             l2l.data.transforms.LoadData(dataset),
             l2l.data.transforms.RemapLabels(dataset),
             l2l.data.transforms.ConsecutiveLabels(dataset)
         ]
         tasks = l2l.data.TaskDataset(dataset, task_transforms=trans, num_tasks=num_tasks)
+        # print("sample tasks")
+        # print(tasks.sample())
+        # print("yah")
+        # print(tasks.sample_task_description())
+
+        labels = list(set(dataset.indices_to_labels[dd.index] for dd in tasks.sample_task_description()))
+        print(labels, "labels")
 
     return tasks

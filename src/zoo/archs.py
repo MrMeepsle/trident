@@ -25,7 +25,6 @@ def fc_init_(module):
 
 
 class LinearBlock(torch.nn.Module):
-
     """ Linear block after feature extraction
     Arguments:-
       input_size, output_size """
@@ -51,7 +50,6 @@ class LinearBlock(torch.nn.Module):
 
 
 class ConvBlock(torch.nn.Module):
-
     """ Convolutional Block consisting of Conv - BatchNorm - ReLU - MaxPool(1/0)
     Arguments:-
       in_channels: no of channels input
@@ -76,8 +74,9 @@ class ConvBlock(torch.nn.Module):
         self.norm = torch.nn.BatchNorm2d(num_features=out_channels)
         self.relu = torch.nn.ReLU()
         torch.nn.init.uniform_(self.norm.weight)
-#         torch.nn.init.xavier_uniform_(self.conv.weight.data)
-#         torch.nn.init.constant_(self.conv.bias.data, 0.0)
+
+    #         torch.nn.init.xavier_uniform_(self.conv.weight.data)
+    #         torch.nn.init.constant_(self.conv.bias.data, 0.0)
 
     def forward(self, x):
         x = self.conv(x)
@@ -100,9 +99,9 @@ class ConvBase(torch.nn.Sequential):
             out_channels = hidden
         block = [ConvBlock(in_channels=channels, out_channels=hidden, kernel_size=(3, 3),
                            max_pool=max_pool, stride=stride)]
-        for _ in range(layers-2):
+        for _ in range(layers - 2):
             block.append(ConvBlock(in_channels=hidden, out_channels=hidden, kernel_size=(3, 3),
-                         max_pool=max_pool, stride=stride))
+                                   max_pool=max_pool, stride=stride))
         block.append(ConvBlock(in_channels=hidden, out_channels=out_channels, kernel_size=(3, 3),
                                max_pool=max_pool, stride=stride))
 
@@ -114,8 +113,8 @@ class Lambda(torch.nn.Module):
         super(Lambda, self).__init__()
         self.lamb = func
 
-    def forward(self, * args, **kwargs):
-        return self.lamb(* args, **kwargs)
+    def forward(self, *args, **kwargs):
+        return self.lamb(*args, **kwargs)
 
 
 class Flatten(torch.nn.Module):
@@ -150,13 +149,13 @@ class OmniCNN(torch.nn.Module):
 
 class MiniImageCNN(torch.nn.Module):
     def __init__(
-        self,
-        output_size,
-        stride,
-        hidden_size=32,
-        layers=4,
-        channels=3,
-        embedding_size=None
+            self,
+            output_size,
+            stride,
+            hidden_size=32,
+            layers=4,
+            channels=3,
+            embedding_size=None
     ):
         super(MiniImageCNN, self).__init__()
         if embedding_size is None:
@@ -242,7 +241,6 @@ class attLSTM(torch.nn.Module):
                                            hidden_size=size)
 
     def forward(self, support, queries, device):
-
         batch_size = queries.shape[0]
         embedding_dim = queries.shape[1]
 
@@ -425,10 +423,10 @@ class CEncoder(nn.Module):
         self.args = args
 
         act_fn = nn.ReLU() if (self.args.dataset == 'tiered' and self.args.k_shots == 1) else nn.LeakyReLU(0.2)
-            
+
         self.net = nn.Sequential(
             nn.Conv2d(num_input_channels, c_hid,
-                      kernel_size=3, padding=1),
+                      kernel_size=3, padding=1),  # Freeze if arg is finetune
             nn.BatchNorm2d(c_hid),
             act_fn,
             nn.MaxPool2d(2),  # 28 x 28, # 42 x 42
@@ -452,6 +450,8 @@ class CEncoder(nn.Module):
             nn.MaxPool2d(2),  # 1x1 # 5 x 5
             nn.Flatten()
         )
+        if 'finetune' in self.args:
+            self.net[0].requires_grad_(not self.args.finetune)  # Freeze first sequential layer if finetune
         self.net = nn.DataParallel(self.net)
 
     def forward(self, x):
@@ -519,8 +519,9 @@ class TADCEncoder(nn.Module):
                 self.n, 1), stride=(1, 1), padding='valid', bias=False),
             act_fn,
 
-            nn.Conv2d(in_channels=self.args.wm_channels, out_channels=self.args.wn_channels, kernel_size=(  # 64 --> args.wm, 32 --> args.wn
-                1, 1), stride=(1, 1), padding='valid', bias=False),
+            nn.Conv2d(in_channels=self.args.wm_channels, out_channels=self.args.wn_channels,
+                      kernel_size=(  # 64 --> args.wm, 32 --> args.wn
+                          1, 1), stride=(1, 1), padding='valid', bias=False),
             act_fn)
         self.fe = nn.DataParallel(self.fe)
 
@@ -542,7 +543,8 @@ class TADCEncoder(nn.Module):
                       G.shape[2], G.shape[3]).unsqueeze(dim=1)
         G = self.fe(G)
 
-        if (self.args.dataset == 'tiered' and self.args.k_shots == 5) or (self.args.dataset == 'miniimagenet' and self.args.k_shots == 5):
+        if (self.args.dataset == 'tiered' and self.args.k_shots == 5) or (
+                self.args.dataset == 'miniimagenet' and self.args.k_shots == 5):
             xq = self.f_q(G)
             xq = nn.LeakyReLU(0.2)(xq)
             xk = self.f_k(G)
@@ -562,11 +564,11 @@ class TADCEncoder(nn.Module):
             0, 1).reshape(-1, x.shape[2], x.shape[3])
 
         # Attention Block
-        xq = xq.reshape(xq.shape[0], xq.shape[1]*xq.shape[2])
-        xk = xk.reshape(xk.shape[0], xk.shape[1]*xk.shape[2])
-        xv = xv.reshape(xv.shape[0], xv.shape[1]*xv.shape[2])
+        xq = xq.reshape(xq.shape[0], xq.shape[1] * xq.shape[2])
+        xk = xk.reshape(xk.shape[0], xk.shape[1] * xk.shape[2])
+        xv = xv.reshape(xv.shape[0], xv.shape[1] * xv.shape[2])
 
-        G = torch.mm(xq, xk.transpose(0, 1)/xk.shape[1]**0.5)
+        G = torch.mm(xq, xk.transpose(0, 1) / xk.shape[1] ** 0.5)
         softmax = nn.Softmax(dim=-1)
         G = softmax(G)
         G = torch.mm(G, xv)
@@ -574,9 +576,9 @@ class TADCEncoder(nn.Module):
         # Transductive Mask transformed input
         G = G.reshape(-1, x.shape[2], x.shape[3])
         if update == 'inner':
-            x = x[:self.args.n_ways*self.args.k_shots] * G
+            x = x[:self.args.n_ways * self.args.k_shots] * G
         elif update == 'outer':
-            x = x[self.args.n_ways*self.args.k_shots:] * G
+            x = x[self.args.n_ways * self.args.k_shots:] * G
 
         x = nn.Flatten()(x)
 
@@ -604,7 +606,7 @@ class CDecoder(nn.Module):
         self.dataset = dataset
         act_fn = nn.ReLU() if (args.dataset == 'tiered' and args.k_shots == 1) else nn.LeakyReLU(0.2)
         self.linear = nn.Sequential(
-            nn.Linear(latent_dim, 25*c_hid),
+            nn.Linear(latent_dim, 25 * c_hid),
             act_fn
         )
         a1 = 10
@@ -617,25 +619,25 @@ class CDecoder(nn.Module):
 
                 nn.UpsamplingNearest2d(size=(a1, a1)),
                 nn.Conv2d(in_channels=c_hid, out_channels=c_hid,
-                        kernel_size=3, padding='same'),
+                          kernel_size=3, padding='same'),
                 nn.BatchNorm2d(c_hid),
                 act_fn,
 
                 nn.UpsamplingNearest2d(size=(a2, a2)),
                 nn.Conv2d(in_channels=c_hid, out_channels=c_hid,
-                        kernel_size=3, padding='same'),
+                          kernel_size=3, padding='same'),
                 nn.BatchNorm2d(c_hid),
                 act_fn,
 
                 nn.UpsamplingNearest2d(size=(a3, a3)),
                 nn.Conv2d(in_channels=c_hid, out_channels=c_hid,
-                        kernel_size=3, padding='same'),
+                          kernel_size=3, padding='same'),
                 nn.BatchNorm2d(c_hid),
                 act_fn,
 
                 nn.UpsamplingNearest2d(size=(a4, a4)),
                 nn.Conv2d(in_channels=c_hid, out_channels=num_input_channels,
-                        kernel_size=3, padding='same'),
+                          kernel_size=3, padding='same'),
                 nn.BatchNorm2d(num_input_channels),
                 nn.Sigmoid()
             )
@@ -645,26 +647,26 @@ class CDecoder(nn.Module):
 
                 nn.UpsamplingNearest2d(size=(a1, a1)),
                 nn.Conv2d(in_channels=c_hid, out_channels=c_hid,
-                        kernel_size=3, padding='same'),
-                #nn.BatchNorm2d(c_hid),
+                          kernel_size=3, padding='same'),
+                # nn.BatchNorm2d(c_hid),
                 act_fn,
 
                 nn.UpsamplingNearest2d(size=(a2, a2)),
                 nn.Conv2d(in_channels=c_hid, out_channels=c_hid,
-                        kernel_size=3, padding='same'),
-                #nn.BatchNorm2d(c_hid),
+                          kernel_size=3, padding='same'),
+                # nn.BatchNorm2d(c_hid),
                 act_fn,
 
                 nn.UpsamplingNearest2d(size=(a3, a3)),
                 nn.Conv2d(in_channels=c_hid, out_channels=c_hid,
-                        kernel_size=3, padding='same'),
-                #nn.BatchNorm2d(c_hid),
+                          kernel_size=3, padding='same'),
+                # nn.BatchNorm2d(c_hid),
                 act_fn,
 
                 nn.UpsamplingNearest2d(size=(a4, a4)),
                 nn.Conv2d(in_channels=c_hid, out_channels=num_input_channels,
-                        kernel_size=3, padding='same'),
-                #nn.BatchNorm2d(num_input_channels),
+                          kernel_size=3, padding='same'),
+                # nn.BatchNorm2d(num_input_channels),
                 nn.Sigmoid()
             )
         self.net = nn.DataParallel(self.net)
@@ -712,9 +714,10 @@ class CVAE(nn.Module):
 class Classifier_VAE(nn.Module):
     """ Module for a Convolutional-VAE: Convolutional Encoder + Linear Classifier that 
     transforms an input image into latent-space gaussian distribution, and uses z_l drawn 
-    from this distribution to produce logits for classification. """
+    from this distribution to produce logits for images. """
 
-    def __init__(self, in_channels, base_channels, latent_dim_l, latent_dim_s, n_ways, task_adapt, args, act_fn: object = nn.LeakyReLU):
+    def __init__(self, in_channels, base_channels, latent_dim_l, latent_dim_s, n_ways, task_adapt, args,
+                 act_fn: object = nn.LeakyReLU):
         super(Classifier_VAE, self).__init__()
         self.in_channels = in_channels
         self.base_channels = base_channels
@@ -724,7 +727,7 @@ class Classifier_VAE(nn.Module):
         self.task_adapt = task_adapt
 
         fcoeff = 25
-        fsize = fcoeff*self.base_channels
+        fsize = fcoeff * self.base_channels
 
         if self.task_adapt:
             self.encoder = TADCEncoder(num_input_channels=self.in_channels,
@@ -739,8 +742,8 @@ class Classifier_VAE(nn.Module):
         act_fn = nn.ReLU() if (args.dataset == 'tiered' and args.k_shots == 1) else nn.LeakyReLU(0.2)
 
         self.classifier = nn.Sequential(
-            nn.Linear(self.latent_dim_l, self.latent_dim_l//2), act_fn,
-            nn.Linear(self.latent_dim_l//2, self.classes))
+            nn.Linear(self.latent_dim_l, self.latent_dim_l // 2), act_fn,
+            nn.Linear(self.latent_dim_l // 2, self.classes))
 
     def reparameterize(self, mu, logvar):
         if self.training:
@@ -779,16 +782,18 @@ class CCVAE(nn.Module):
         self.args = args
 
         fcoeff = 25
-        fsize = fcoeff*self.base_channels
+        fsize = fcoeff * self.base_channels
 
         self.encoder = CEncoder(num_input_channels=self.in_channels,
                                 base_channel_size=self.base_channels, args=args)
 
         self.decoder = CDecoder(num_input_channels=self.in_channels,
-                                base_channel_size=self.base_channels, latent_dim=(self.latent_dim_s + self.latent_dim_l), args=args)
+                                base_channel_size=self.base_channels,
+                                latent_dim=(self.latent_dim_s + self.latent_dim_l), args=args)
 
         self.classifier_vae = Classifier_VAE(
-            in_channels=self.in_channels, base_channels=self.base_channels, latent_dim_l=self.latent_dim_l, latent_dim_s=self.latent_dim_s, n_ways=self.classes, task_adapt=task_adapt, args=self.args)
+            in_channels=self.in_channels, base_channels=self.base_channels, latent_dim_l=self.latent_dim_l,
+            latent_dim_s=self.latent_dim_s, n_ways=self.classes, task_adapt=task_adapt, args=self.args)
 
         self.gaussian_parametrizer = GaussianParametrizer(
             latent_dim=self.latent_dim_s, feature_dim=fsize, args=args)
@@ -804,9 +809,9 @@ class CCVAE(nn.Module):
     def forward(self, x, update):
 
         if self.task_adapt & (update == 'inner'):
-            xs = x[:self.args.n_ways*self.args.k_shots]
+            xs = x[:self.args.n_ways * self.args.k_shots]
         elif self.task_adapt & (update == 'outer'):
-            xs = x[self.args.n_ways*self.args.k_shots:]
+            xs = x[self.args.n_ways * self.args.k_shots:]
         else:
             xs = x
         xs = self.encoder(xs)
@@ -831,14 +836,14 @@ class BasicBlock(nn.Module):
     expansion = 1
 
     def __init__(
-        self,
-        inplanes,
-        planes,
-        stride=1,
-        downsample=None,
-        drop_rate=0.0,
-        drop_block=False,
-        block_size=1,
+            self,
+            inplanes,
+            planes,
+            stride=1,
+            downsample=None,
+            drop_rate=0.0,
+            drop_block=False,
+            block_size=1,
     ):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes)
@@ -887,9 +892,9 @@ class BasicBlock(nn.Module):
                     1.0 - self.drop_rate
                 )
                 gamma = (
-                    (1 - keep_rate)
-                    / self.block_size**2 * feat_size**2
-                    / (feat_size - self.block_size + 1)**2
+                        (1 - keep_rate)
+                        / self.block_size ** 2 * feat_size ** 2
+                        / (feat_size - self.block_size + 1) ** 2
                 )
                 out = self.DropBlock(out, gamma=gamma)
             else:
@@ -921,10 +926,10 @@ class DropBlock(nn.Module):
             )).to(x.device)
             block_mask = self._compute_block_mask(mask)
             countM = (
-                block_mask.size(0)
-                * block_mask.size(1)
-                * block_mask.size(2)
-                * block_mask.size(3)
+                    block_mask.size(0)
+                    * block_mask.size(1)
+                    * block_mask.size(2)
+                    * block_mask.size(3)
             )
             count_ones = block_mask.sum()
             return block_mask * x * (countM / count_ones)
@@ -932,7 +937,7 @@ class DropBlock(nn.Module):
             return x
 
     def _compute_block_mask(self, mask):
-        left_padding = int((self.block_size-1) / 2)
+        left_padding = int((self.block_size - 1) / 2)
         right_padding = int(self.block_size / 2)
 
         batch_size, channels, height, width = mask.shape
@@ -948,7 +953,7 @@ class DropBlock(nn.Module):
             ]
         ).t()
         offsets = torch.cat(
-            (torch.zeros(self.block_size**2, 2).long(), offsets.long()),
+            (torch.zeros(self.block_size ** 2, 2).long(), offsets.long()),
             dim=1,
         ).to(mask.device)
 
@@ -980,14 +985,14 @@ class DropBlock(nn.Module):
 class ResNet12Backbone(nn.Module):
 
     def __init__(
-        self,
-        args,
-        avg_pool=True,  # Set to False for 16000-dim embeddings
-        wider=True,  # True mimics MetaOptNet, False mimics TADAM
-        embedding_dropout=0.0,  # dropout for embedding
-        dropblock_dropout=0.1,  # dropout for residual layers
-        dropblock_size=5,
-        channels=3,
+            self,
+            args,
+            avg_pool=True,  # Set to False for 16000-dim embeddings
+            wider=True,  # True mimics MetaOptNet, False mimics TADAM
+            embedding_dropout=0.0,  # dropout for embedding
+            dropblock_dropout=0.1,  # dropout for residual layers
+            dropblock_size=5,
+            channels=3,
     ):
         super(ResNet12Backbone, self).__init__()
         self.args = args
@@ -1048,13 +1053,13 @@ class ResNet12Backbone(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
     def _make_layer(
-        self,
-        block,
-        planes,
-        stride=1,
-        dropblock_dropout=0.0,
-        drop_block=False,
-        block_size=1,
+            self,
+            block,
+            planes,
+            stride=1,
+            dropblock_dropout=0.0,
+            drop_block=False,
+            block_size=1,
     ):
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
@@ -1102,7 +1107,7 @@ def conv3x3wrn(in_planes, out_planes, stride=1):
 def conv_init(m):
     classname = m.__class__.__name__
     if classname.find('Conv') != -1:
-        torch.nn.init.xavier_uniform(m.weight, gain=2**0.5)
+        torch.nn.init.xavier_uniform(m.weight, gain=2 ** 0.5)
         torch.nn.init.constant(m.bias, 0)
     elif classname.find('BatchNorm') != -1:
         torch.nn.init.constant(m.weight, 1)
@@ -1150,7 +1155,7 @@ class WideResNet(torch.nn.Module):
         n = int((depth - 4) / 6)
         k = widen_factor
 
-        nStages = [16, 16*k, 32*k, 64*k]
+        nStages = [16, 16 * k, 32 * k, 64 * k]
 
         self.conv1 = conv3x3wrn(3, nStages[0])
         self.layer1 = self._wide_layer(
@@ -1162,7 +1167,7 @@ class WideResNet(torch.nn.Module):
         self.bn1 = torch.nn.BatchNorm2d(nStages[3], momentum=0.9)
 
     def _wide_layer(self, block, planes, num_blocks, dropout_rate, stride):
-        strides = [stride] + [1]*(num_blocks-1)
+        strides = [stride] + [1] * (num_blocks - 1)
         layers = []
 
         for stride in strides:

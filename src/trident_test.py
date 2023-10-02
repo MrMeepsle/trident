@@ -80,6 +80,14 @@ elif args.task_adapt == 'False':
 train_tasks, valid_tasks, test_tasks, learner = setup(
     args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device,
     download=args.download, task_adapt=args.task_adapt, args=args)
+# print(test_tasks.dataset)
+# print("above")
+# print(test_tasks.sampled_descriptions)
+# print(test_tasks.task_transforms)
+# print(test_tasks.num_tasks)
+# print(test_tasks.__getitem__(1))
+# print(test_tasks.sample_task_description())
+# print("stoop")
 reconst_loss = nn.MSELoss(reduction='none')
 if args.order == False:
     profiler = Profiler('TRIDENT_test_{}_{}-way_{}-shot_{}-queries'.format(args.dataset,
@@ -91,32 +99,39 @@ elif args.order == True:
         args.dataset, args.n_ways, args.k_shots, args.q_shots), args.experiment, args)
 
 ## Testing ##
-for model_name in os.listdir(args.model_path):
+models = os.listdir(args.model_path)
+for m, model_name in enumerate(models):
     state_dict = torch.load('{}/{}'.format(args.model_path, model_name), map_location=args.device)
-    new_state_dict = {}
-    for old_key in state_dict.keys():  # This is weird for sure, Hacks
-        new_key = old_key.replace(".net.", ".net.module.")
-        new_key = new_key.replace(".fe.", ".fe.module.")
-        new_state_dict[new_key] = state_dict[old_key]
-    learner.load_state_dict(new_state_dict)
+    # print(state_dict.keys())
+    # new_state_dict = {} # Only do this hack with old pretrained models
+    # for old_key in state_dict.keys():  # This is weird for sure, Hacks
+    #     # print(old_key)
+    #     new_key = old_key.replace(".net.", ".net.module.")
+    #     new_key = new_key.replace(".fe.", ".fe.module.")
+    #     new_state_dict[new_key] = state_dict[old_key]
+    state_dict = torch.load('{}/{}'.format(args.model_path, model_name), map_location=args.device)
+    learner.load_state_dict(state_dict)
     learner = learner.to(args.device)
-    print('Testing on held out classes')
+    print("Testing model {} {}/{} on held out classes".format(model_name, m + 1, len(models)))
     for t in range(args.times):
-        for i, tetask in enumerate(test_tasks):
-
+        progress_bar = tqdm.tqdm(total=len(test_tasks))
+        for i, test_task in enumerate(test_tasks):
             model = learner.clone()
+            original_labels = list(test_tasks.dataset.indices_to_labels[dd.index] for dd in test_tasks.sampled_descriptions[i])
             if args.extra == 'Yes':
-                evaluation_loss, evaluation_accuracy, reconst_img, query_imgs, mu_l, log_var_l, mu_s, log_var_s, logits, labels, mu_l_0, log_var_l_0, mu_s_0, log_var_s_0 = inner_adapt_trident(
-                    tetask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_test,
-                    args.device, True, args, "Yes")
+                evaluation_loss, evaluation_accuracy, reconst_img, query_imgs, mu_l, log_var_l, mu_s, log_var_s, logits, labels, original_labels, og_support_labels, mu_l_0, log_var_l_0, mu_s_0, log_var_s_0 = inner_adapt_trident(
+                    test_task, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots,
+                    args.inner_adapt_steps_test,
+                    args.device, True, args, "Yes", original_labels=original_labels)
             elif args.extra == 'No':
-                evaluation_loss, evaluation_accuracy, reconst_img, query_imgs, mu_l, log_var_l, mu_s, log_var_s, logits, labels = inner_adapt_trident(
-                    tetask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_test,
-                    args.device, True, args, "No")
+                evaluation_loss, evaluation_accuracy, reconst_img, query_imgs, mu_l, log_var_l, mu_s, log_var_s, logits, labels, original_labels, og_support_labels = inner_adapt_trident(
+                    test_task, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots,
+                    args.inner_adapt_steps_test,
+                    args.device, True, args, "No", original_labels=original_labels)
 
             # Logging test-task logits and ground-truth labels
             tmp = np.array(
-                torch.cat([torch.full((args.n_ways * args.q_shots, 1), i), logits, labels.unsqueeze(dim=1)], axis=1))
+                torch.cat([torch.full((args.n_ways * args.q_shots, 1), i), logits, labels.unsqueeze(dim=1), torch.from_numpy(original_labels).unsqueeze(dim=1), torch.from_numpy(og_support_labels).unsqueeze(dim=1)], axis=1))
             profiler.log_csv(tmp, 'preds')
 
             # Logging per test-task losses and accuracies
@@ -138,3 +153,5 @@ for model_name in os.listdir(args.model_path):
                 dl = {"label_latents": [mu_l, log_var_l],
                       "style_latents": [mu_s, log_var_s]}
                 profiler.log_data(dl, i, 'latents', 'test')
+
+            progress_bar.update()

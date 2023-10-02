@@ -1,7 +1,7 @@
 import argparse
 import json
 
-#import numpy as np
+# import numpy as np
 import tqdm
 import torch
 from torch import nn, optim
@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--cnfg', type=str)
 parser.add_argument('--dataset', type=str)
 parser.add_argument('--root', type=str)
+parser.add_argument('--checkpoint', type=str)
 parser.add_argument('--n-ways', type=int)
 parser.add_argument('--k-shots', type=int)
 parser.add_argument('--q-shots', type=int)
@@ -41,7 +42,7 @@ parser.add_argument('--experiment', type=str)
 parser.add_argument('--order', type=str)
 parser.add_argument('--device', type=str)
 parser.add_argument('--download', type=str)
-
+parser.add_argument('--finetune', type=str)
 
 args = parser.parse_args()
 with open(args.cnfg) as f:
@@ -52,8 +53,7 @@ with open(args.cnfg) as f:
     args = argparse.Namespace()
     args.__dict__.update(argparse_dict)
 
-
-# TODO: fix this bool/str shit
+# TODO: fix this bool/str shit, use yaml for example
 
 if args.order == 'True':
     args.order = True
@@ -75,17 +75,27 @@ if args.task_adapt == 'True':
 elif args.task_adapt == 'False':
     args.task_adapt = False
 
+if args.finetune == 'True':
+    args.finetune = True
+elif args.finetune == 'False':
+    args.finetune = False
 
 # Generating Tasks, initializing learners, loss, meta - optimizer and profilers
-train_tasks, valid_tasks, _, learner = setup(
-    args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device, download=args.download, task_adapt=args.task_adapt, args=args)
+train_tasks, valid_tasks, test_tasks, learner = setup(
+    args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device,
+    download=args.download, task_adapt=args.task_adapt, args=args)
+if args.checkpoint:
+    state_dict = torch.load('{}'.format(args.checkpoint), map_location=args.device)
+    learner.load_state_dict(state_dict)
+    learner = learner.to(args.device)
 opt = optim.Adam(learner.parameters(), args.meta_lr)
 reconst_loss = nn.MSELoss(reduction='none')
 start = 0
 
 if args.order == False:
-    profiler = Profiler('TRIDENT_{}_{}-way_{}-shot_{}-queries'.format(args.dataset,
-                        args.n_ways, args.k_shots, args.q_shots), args.experiment, args)
+    profiler = Profiler(
+        'TRIDENT_{}_{}-way_{}-shot_{}-queries'.format(args.dataset, args.n_ways, args.k_shots, args.q_shots),
+        args.experiment, args)
 
 elif args.order == True:
     profiler = Profiler('FO-TRIDENT_{}_{}-way_{}-shot_{}-queries'.format(
@@ -101,12 +111,13 @@ for iter in tqdm.tqdm(range(start, args.iterations)):
         model = learner.clone()
 
         evaluation_loss, evaluation_accuracy = inner_adapt_trident(
-            ttask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_train, args.device, False, args, "No")
+            ttask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_train,
+            args.device, False, args, "No")
 
         evaluation_loss['elbo'].backward()
-        
+
         # Logging per train-task losses and accuracies
-        tmp = [(iter*args.meta_batch_size)+batch, evaluation_accuracy.item()]
+        tmp = [(iter * args.meta_batch_size) + batch, evaluation_accuracy.item()]
         tmp = tmp + [a.item() for a in evaluation_loss.values()]
         batch_losses.append(tmp)
 
@@ -114,7 +125,8 @@ for iter in tqdm.tqdm(range(start, args.iterations)):
     model = learner.clone()
 
     validation_loss, validation_accuracy = inner_adapt_trident(
-        vtask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_train, args.device, False, args, "No")
+        vtask, reconst_loss, model, args.n_ways, args.k_shots, args.q_shots, args.inner_adapt_steps_train, args.device,
+        False, args, "No")
 
     # Logging per validation-task losses and accuracies
     tmp = [iter, validation_accuracy.item()]

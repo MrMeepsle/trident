@@ -91,12 +91,12 @@ elif args.order == True:
 
 for model_name in os.listdir(args.model_path):
     state_dict = torch.load('{}/{}'.format(args.model_path, model_name), map_location=args.device)
-    new_state_dict = {}
-    for old_key in state_dict.keys():  # This is weird for sure, Hacks, might have to do with nn.parallel
-        new_key = old_key.replace(".net.", ".net.module.")
-        new_key = new_key.replace(".fe.", ".fe.module.")
-        new_state_dict[new_key] = state_dict[old_key]
-    learner.load_state_dict(new_state_dict)
+    # new_state_dict = {}
+    # for old_key in state_dict.keys():  # This is weird for sure, Hacks, might have to do with nn.parallel
+    #     new_key = old_key.replace(".net.", ".net.module.")
+    #     new_key = new_key.replace(".fe.", ".fe.module.")
+    #     new_state_dict[new_key] = state_dict[old_key]
+    learner.load_state_dict(state_dict)
     learner = learner.to(args.device)
     print('Testing models on held out validation classes')
 
