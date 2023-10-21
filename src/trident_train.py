@@ -5,9 +5,17 @@ import json
 import tqdm
 import torch
 from torch import nn, optim
+import numpy as np
+import random
 
 from src.utils2 import Profiler
 from src.zoo.trident_utils import inner_adapt_trident, setup
+
+# Fix the seed
+seed = 0
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
 
 ##############
 # Parameters #
