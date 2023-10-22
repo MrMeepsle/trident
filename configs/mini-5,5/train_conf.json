@@ -1,6 +1,6 @@
 {
 "dataset": "custom",
-"root": "./datasets/inner_set_supermarket_TRIDENT",
+"root": "./datasets/trident_rp2k_outer/trident_rp2k_outer/rp2k",
 "n_ways": 5,
 "k_shots": 5,
 "q_shots": 10,
@@ -19,7 +19,7 @@
 "zl": 64,
 "zs": 64,
 "task_adapt": "True",
-"experiment": "exp5",
+"experiment": "trident_outer_run",
 "order": "False",
 "device": "cuda:0"
 }
