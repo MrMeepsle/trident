@@ -9,11 +9,6 @@ from torch import nn, optim
 import numpy as np
 import random
 
-seed = 0  # Set manual seed to a fixed number for reproducibility
-torch.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed)
-
 from src.utils2 import Profiler
 from src.zoo.trident_utils import inner_adapt_trident, setup
 
