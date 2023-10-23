@@ -452,7 +452,6 @@ class CEncoder(nn.Module):
         )
         if 'finetune' in self.args:
             self.net[0].requires_grad_(not self.args.finetune)  # Freeze first sequential layer if finetune
-        self.net = nn.DataParallel(self.net)
 
     def forward(self, x):
         x = self.net(x)
@@ -508,7 +507,6 @@ class TADCEncoder(nn.Module):
             act_fn,
             nn.MaxPool2d(2)  # 1x1 # 5 x 5
         )
-        self.net = nn.DataParallel(self.net)
 
         self.n = args.n_ways * (args.k_shots + args.q_shots)
 
@@ -523,7 +521,6 @@ class TADCEncoder(nn.Module):
                       kernel_size=(  # 64 --> args.wm, 32 --> args.wn
                           1, 1), stride=(1, 1), padding='valid', bias=False),
             act_fn)
-        self.fe = nn.DataParallel(self.fe)
 
         # Query, Key and Value extractors as 1x1 Convs
         self.f_q = nn.Conv2d(in_channels=self.args.wn_channels, out_channels=1, kernel_size=(  # 32 --> args.wn
@@ -669,7 +666,6 @@ class CDecoder(nn.Module):
                 # nn.BatchNorm2d(num_input_channels),
                 nn.Sigmoid()
             )
-        self.net = nn.DataParallel(self.net)
 
     def forward(self, x):
         x = self.linear(x)
