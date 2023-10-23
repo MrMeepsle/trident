@@ -1,10 +1,16 @@
 import argparse
 import json
+import random
 
-# import numpy as np
+import numpy as np
 import tqdm
 import torch
 from torch import nn, optim
+
+seed = 0  # Set manual seed to a fixed number for reproducibility
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
 
 from src.utils2 import Profiler
 from src.zoo.trident_utils import inner_adapt_trident, setup
@@ -88,6 +94,7 @@ if args.checkpoint:
     state_dict = torch.load('{}'.format(args.checkpoint), map_location=args.device)
     learner.load_state_dict(state_dict)
     learner = learner.to(args.device)
+    print("loaded model from checkpoint")
 opt = optim.Adam(learner.parameters(), args.meta_lr)
 reconst_loss = nn.MSELoss(reduction='none')
 start = 0

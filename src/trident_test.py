@@ -77,9 +77,9 @@ elif args.task_adapt == 'False':
     args.task_adapt = False
 
 # Generating Tasks, initializing learners, loss, meta - optimizer and profilers
-train_tasks, valid_tasks, test_tasks, learner = setup(
+_, _, test_tasks, learner = setup(
     args.dataset, args.root, args.n_ways, args.k_shots, args.q_shots, args.order, args.inner_lr, args.device,
-    download=args.download, task_adapt=args.task_adapt, args=args)
+    download=args.download, task_adapt=args.task_adapt, args=args, deploy=False)
 # print(test_tasks.dataset)
 # print("above")
 # print(test_tasks.sampled_descriptions)

@@ -11,13 +11,13 @@ from torchvision import transforms
 from src.zoo.archs import CCVAE
 
 
-def setup(dataset, root, n_ways, k_shots, q_shots, order, inner_lr, device, download, task_adapt, args):
+def setup(dataset, root, n_ways, k_shots, q_shots, order, inner_lr, device, download, task_adapt, args, deploy=True):
     if dataset == 'miniimagenet':
         # Generating tasks and model according to the MAML implementation for MiniImageNet
         train_tasks = gen_tasks(dataset, root, download=download, mode='train',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=500)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=500) if deploy else None
         valid_tasks = gen_tasks(dataset, root, download=download, mode='validation',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=500)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=500) if deploy else None
         test_tasks = gen_tasks(dataset, root, download=download, mode='test',
                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=600)
         learner = CCVAE(in_channels=3, base_channels=32,
@@ -26,9 +26,9 @@ def setup(dataset, root, n_ways, k_shots, q_shots, order, inner_lr, device, down
     elif dataset == 'tiered':
         image_trans = transforms.Compose([transforms.ToTensor()])
         train_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=download, mode='train',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots)  # , num_tasks=50000)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots) if deploy else None
         valid_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=download, mode='validation',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots)  # , num_tasks=10000)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots) if deploy else None
         test_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=download, mode='test',
                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=2000)
         learner = CCVAE(in_channels=3, base_channels=32,
@@ -37,9 +37,9 @@ def setup(dataset, root, n_ways, k_shots, q_shots, order, inner_lr, device, down
     elif dataset == 'cub':
         image_trans = transforms.Compose([transforms.ToTensor(), transforms.Resize([84, 84])])
         train_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=True, mode='train',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots)  # , num_tasks=50000)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots) if deploy else None
         valid_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=True, mode='validation',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots)  # , num_tasks=10000)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots) if deploy else None
         test_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=True, mode='test',
                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=2000)
         # Initializing the model with miniimagenet parameters
@@ -51,9 +51,9 @@ def setup(dataset, root, n_ways, k_shots, q_shots, order, inner_lr, device, down
     elif dataset == 'custom':
         image_trans = transforms.Compose([transforms.ToTensor(), transforms.Resize([84, 84])])
         train_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=True, mode='train',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots)  # , num_tasks=50000)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots) if deploy else None
         valid_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=True, mode='validation',
-                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots)  # , num_tasks=10000)
+                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots) if deploy else None
         test_tasks = gen_tasks(dataset, root, image_transforms=image_trans, download=True, mode='test',
                                n_ways=n_ways, k_shots=k_shots, q_shots=q_shots, num_tasks=2000)
         # Initializing the model with miniimagenet parameters
@@ -128,9 +128,7 @@ def inner_adapt_trident(task, reconst_loss, learner, n_ways, k_shots, q_shots, a
     queries_labels = labels[np.where(queries_index == 1)]
     if original_labels is not None:
         original_support_labels = np.asarray(original_labels)[np.where(queries_index == 0)]
-        print(len(support_labels))
         original_labels = np.asarray(original_labels)[np.where(queries_index == 1)]
-        print(len(original_labels))
     else:
         original_support_labels = None
 
@@ -175,11 +173,13 @@ def inner_adapt_trident(task, reconst_loss, learner, n_ways, k_shots, q_shots, a
     if log_data and (extra == 'Yes'):
         return eval_loss, eval_acc, reconst_image.detach().to('cpu'), queries.detach().to('cpu'), mu_l.detach().to(
             'cpu'), log_var_l.detach().to('cpu'), mu_s.detach().to('cpu'), log_var_s.detach().to(
-            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to('cpu'), original_labels, original_support_labels, mu_l_0.detach().to(
+            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to(
+            'cpu'), original_labels, original_support_labels, mu_l_0.detach().to(
             'cpu'), log_var_l_0.detach().to('cpu'), mu_s_0.detach().to('cpu'), log_var_s_0.detach().to('cpu')
     elif log_data and (extra == 'No'):
         return eval_loss, eval_acc, reconst_image.detach().to('cpu'), queries.detach().to('cpu'), mu_l.detach().to(
             'cpu'), log_var_l.detach().to('cpu'), mu_s.detach().to('cpu'), log_var_s.detach().to(
-            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to('cpu'), original_labels, original_support_labels
+            'cpu'), logits.detach().to('cpu'), queries_labels.detach().to(
+            'cpu'), original_labels, original_support_labels
     else:
         return eval_loss, eval_acc
